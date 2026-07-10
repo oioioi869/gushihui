@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>故事漂流瓶 · Story Drift</title>
+<script src="https://cdn.jsdelivr.net/npm/leancloud-storage@4.15.2/dist/av-live-query-min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { width: 100%; height: 100%; overflow: hidden; font-family: "PingFang SC", "Microsoft YaHei", sans-serif; background: #B8E4F0; user-select: none; }
+  #app { position: relative; width: 100%; height: 100%; overflow: hidden; }
+
+  .sky { position: absolute; top: 0; left: 0; right: 0; height: 58%; background: linear-gradient(to bottom, #A8D8F0 0%, #C7E8F5 25%, #FFE8C8 60%, #FFF3DC 85%, #FFF9EC 100%); z-index: 1; }
+  .sun { position: absolute; top: 15%; left: 50%; transform: translateX(-50%); width: 180px; height: 180px; border-radius: 50%; background: radial-gradient(circle, #FFFBE6 0%, #FFE89A 30%, #FFD66B 55%, rgba(255, 200, 100, 0.4) 75%, transparent 100%); box-shadow: 0 0 60px rgba(255, 230, 150, 0.8), 0 0 120px rgba(255, 210, 120, 0.5), 0 0 200px rgba(255, 200, 100, 0.3); z-index: 2; animation: sunPulse 5s ease-in-out infinite; }
+  .sun::before { content: ''; position: absolute; inset: -40px; border-radius: 50%; background: radial-gradient(circle, rgba(255, 240, 180, 0.3) 0%, transparent 70%); animation: sunGlow 4s ease-in-out infinite; }
+  @keyframes sunPulse { 0%, 100% { transform: translateX(-50%) scale(1); } 50% { transform: translateX(-50%) scale(1.03); } }
+  @keyframes sunGlow { 0%, 100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.1); opacity: 1; } }
+
+  .cloud { position: absolute; background: #fff; border-radius: 50%; box-shadow: 30px 10px 0 -5px #fff, 60px 0 0 -10px #fff, -20px 5px 0 -8px #fff, 0 10px 30px rgba(180, 210, 230, 0.3); z-index: 2; animation: cloudDrift 80s linear infinite; opacity: 0.9; }
+  @keyframes cloudDrift { from { transform: translateX(-250px); } to { transform: translateX(calc(100vw + 250px)); } }
+
+  .sea { position: absolute; bottom: 0; left: 0; right: 0; height: 47%; background: linear-gradient(to bottom, #9FD8D8 0%, #7FC8C8 25%, #5FB8C0 60%, #4AA8B8 100%); z-index: 3; overflow: hidden; }
+  .wave { position: absolute; left: -5%; width: 110%; height: 80px; background-repeat: repeat-x; background-size: 600px 80px; z-index: 4; }
+  .wave-1 { top: -30px; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 80'><path d='M0,40 C150,10 300,70 600,40 L600,80 L0,80 Z' fill='%239FD8D8' opacity='0.85'/></svg>"); animation: waveMove 12s linear infinite; }
+  .wave-2 { top: -15px; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 80'><path d='M0,40 C150,70 300,10 600,40 L600,80 L0,80 Z' fill='%237FC8C8' opacity='0.9'/></svg>"); animation: waveMove 8s linear infinite reverse; }
+  .wave-3 { top: 0; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 80'><path d='M0,40 C150,20 300,60 600,40 L600,80 L0,80 Z' fill='%235FB8C0'/></svg>"); animation: waveMove 15s linear infinite; }
+  @keyframes waveMove { from { background-position-x: 0; } to { background-position-x: 600px; } }
+
+  .sparkle { position: absolute; width: 4px; height: 4px; background: #FFFBE6; border-radius: 50%; box-shadow: 0 0 8px #FFFBE6, 0 0 16px rgba(255, 240, 180, 0.6); pointer-events: none; animation: sparkle 3.5s ease-in-out infinite; }
+  @keyframes sparkle { 0%, 100% { opacity: 0; transform: scale(0.5); } 50% { opacity: 1; transform: scale(1.4); } }
+
+  .bird { position: absolute; width: 20px; height: 6px; z-index: 3; animation: birdFly 30s linear infinite; }
+  .bird::before, .bird::after { content: ''; position: absolute; width: 10px; height: 2px; background: rgba(80, 100, 120, 0.5); border-radius: 50%; top: 0; }
+  .bird::before { left: 0; transform-origin: right; animation: wingFlap 0.4s ease-in-out infinite; }
+  .bird::after { right: 0; transform-origin: left; animation: wingFlap 0.4s ease-in-out infinite reverse; }
+  @keyframes birdFly { from { transform: translateX(-50px); } to { transform: translateX(calc(100vw + 50px)); } }
+  @keyframes wingFlap { 0%, 100% { transform: rotate(-20deg); } 50% { transform: rotate(20deg); } }
+
+  .page { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 10; padding: 20px; text-align: center; color: #3A5A6A; overflow-y: auto; }
+  .page.active { display: flex; animation: pageIn 0.6s ease; }
+  @keyframes pageIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+  .logo { font-size: 14px; letter-spacing: 0.3em; color: rgba(255, 255, 255, 0.9); margin-bottom: 20px; font-weight: 400; text-shadow: 0 2px 8px rgba(100, 150, 180, 0.3); }
+  .home-text { font-size: clamp(20px, 4vw, 28px); line-height: 2.2; letter-spacing: 0.12em; color: #2A4A5A; text-shadow: 0 2px 12px rgba(255, 255, 255, 0.6); margin-bottom: 50px; max-width: 90%; font-weight: 400; }
+  .home-text .line { display: block; opacity: 0; animation: lineIn 1s ease forwards; }
+  .home-text .line:nth-child(1) { animation-delay: 0.3s; }
+  .home-text .line:nth-child(2) { animation-delay: 1s; }
+  .home-text .line:nth-child(3) { animation-delay: 1.7s; }
+  @keyframes lineIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+  .btn { padding: 14px 38px; background: rgba(255, 255, 255, 0.75); border: 1px solid rgba(255, 255, 255, 0.9); color: #3A6A7A; font-size: 15px; font-family: inherit; cursor: pointer; border-radius: 30px; backdrop-filter: blur(12px); transition: all 0.3s; letter-spacing: 0.12em; margin: 8px; min-width: 210px; position: relative; overflow: hidden; box-shadow: 0 4px 16px rgba(100, 160, 190, 0.15); font-weight: 500; }
+  .btn:hover { background: rgba(255, 255, 255, 0.9); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(255, 180, 100, 0.3); color: #E8845A; }
+  .btn:active { transform: translateY(0); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn.primary { background: linear-gradient(135deg, #FFD89B 0%, #FFB088 100%); border-color: rgba(255, 200, 150, 0.9); color: #fff; text-shadow: 0 1px 2px rgba(200, 100, 50, 0.2); box-shadow: 0 4px 16px rgba(255, 160, 100, 0.35); }
+  .btn.primary:hover { background: linear-gradient(135deg, #FFE0A8 0%, #FFBC98 100%); color: #fff; }
+
+  .floating-bottles { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+  .float-bottle { position: absolute; animation: floatBottle 22s linear infinite; }
+  @keyframes floatBottle { 0% { transform: translateX(-100px) translateY(0) rotate(-5deg); } 50% { transform: translateX(50vw) translateY(-12px) rotate(5deg); } 100% { transform: translateX(calc(100vw + 100px)) translateY(0) rotate(-5deg); } }
+
+  .card { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.9); border-radius: 24px; padding: 30px 24px; max-width: 480px; width: 92%; box-shadow: 0 12px 40px rgba(100, 160, 190, 0.2); }
+  .card-title { font-size: 22px; margin-bottom: 18px; letter-spacing: 0.1em; font-weight: 500; color: #3A5A6A; }
+  .card-hint { font-size: 13px; color: #7A9AAA; margin-bottom: 18px; line-height: 1.8; }
+  .card-hint span { display: inline-block; margin: 2px 4px; padding: 3px 10px; background: rgba(255, 220, 180, 0.3); border-radius: 10px; font-size: 12px; color: #C87850; }
+  textarea { width: 100%; min-height: 120px; background: rgba(255, 250, 240, 0.6); border: 1px solid rgba(200, 180, 150, 0.3); border-radius: 14px; padding: 14px; color: #3A5A6A; font-size: 15px; font-family: inherit; resize: none; outline: none; line-height: 1.8; transition: all 0.3s; }
+  textarea::placeholder { color: #B0C0C8; }
+  textarea:focus { border-color: #FFB088; background: rgba(255, 250, 240, 0.9); box-shadow: 0 0 0 3px rgba(255, 180, 130, 0.15); }
+
+  .color-picker { display: flex; justify-content: center; gap: 14px; margin: 22px 0; flex-wrap: wrap; }
+  .color-dot { width: 46px; height: 46px; border-radius: 50%; cursor: pointer; border: 3px solid rgba(255,255,255,0.8); transition: all 0.3s; position: relative; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 3px 10px rgba(0,0,0,0.1); }
+  .color-dot:hover { transform: scale(1.1); }
+  .color-dot.selected { border-color: #fff; transform: scale(1.18); box-shadow: 0 0 0 3px currentColor, 0 6px 20px rgba(0,0,0,0.15); }
+  .color-dot::after { content: attr(data-label); position: absolute; bottom: -22px; font-size: 11px; color: #7A9AAA; white-space: nowrap; font-weight: 500; }
+  .c-warm { background: radial-gradient(circle, #FFE08A, #FFB860); color: #FFB860; }
+  .c-sorry { background: radial-gradient(circle, #B8D8F0, #7AB0D8); color: #7AB0D8; }
+  .c-grow { background: radial-gradient(circle, #C8E8B8, #88C878); color: #88C878; }
+  .c-dream { background: radial-gradient(circle, #E0C8F0, #B890D8); color: #B890D8; }
+  .c-love { background: radial-gradient(circle, #FFC0C0, #F08898); color: #F08898; }
+
+  .seal-stage { position: relative; width: 200px; height: 280px; margin: 20px auto; }
+  .seal-bottle { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) scale(1.5); transition: all 1.8s cubic-bezier(0.4, 0, 0.2, 1); }
+  .seal-bottle.sailing { transform: translate(-50%, -50%) scale(0.2) translateY(-220px); opacity: 0; }
+  .cork { position: absolute; left: 50%; top: -30px; transform: translateX(-50%); width: 30px; height: 20px; background: linear-gradient(to bottom, #D8A878, #A87848); border-radius: 4px; transition: all 0.8s cubic-bezier(0.6, -0.2, 0.4, 1.2); opacity: 0; }
+  .cork.drop { top: 20px; opacity: 1; }
+  .seal-text { position: absolute; bottom: 0; left: 0; right: 0; color: #fff; font-size: 16px; line-height: 2; letter-spacing: 0.1em; opacity: 0; transition: opacity 1s ease 1.2s; text-shadow: 0 2px 10px rgba(100, 150, 180, 0.5); font-weight: 500; }
+  .seal-text.show { opacity: 1; }
+
+  .pickup-stage { position: relative; width: 100%; max-width: 500px; margin: 20px auto; }
+  .pickup-bottle { margin: 0 auto; cursor: pointer; animation: bottleBob 3s ease-in-out infinite; transition: transform 0.3s; display: block; }
+  .pickup-bottle:hover { transform: scale(1.08); }
+  @keyframes bottleBob { 0%, 100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-12px) rotate(3deg); } }
+  .pickup-hint { margin-top: 24px; font-size: 14px; color: #fff; letter-spacing: 0.1em; animation: blink 2s ease-in-out infinite; text-shadow: 0 2px 8px rgba(100, 150, 180, 0.5); font-weight: 500; }
+  @keyframes blink { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+
+  .filter-bar { display: flex; gap: 8px; margin: 16px 0; flex-wrap: wrap; justify-content: center; }
+  .filter-chip { padding: 6px 14px; background: rgba(255,255,255,0.6); border: 1px solid rgba(255,255,255,0.8); border-radius: 20px; color: #5A7A8A; font-size: 12px; cursor: pointer; transition: all 0.2s; font-weight: 500; }
+  .filter-chip:hover { background: rgba(255,255,255,0.85); }
+  .filter-chip.active { background: linear-gradient(135deg, #FFD89B, #FFB088); border-color: #FFB088; color: #fff; box-shadow: 0 3px 10px rgba(255, 160, 100, 0.3); }
+
+  .story-card { background: linear-gradient(135deg, #FFFDF5 0%, #FFF5E0 100%); color: #4A3A2A; border-radius: 20px; padding: 30px 24px; max-width: 480px; width: 92%; box-shadow: 0 12px 40px rgba(100, 160, 190, 0.25); position: relative; animation: unfold 0.8s cubic-bezier(0.4, 0, 0.2, 1); transform-origin: top center; border: 1px solid rgba(255, 220, 180, 0.5); }
+  @keyframes unfold { from { transform: scaleY(0); opacity: 0; } to { transform: scaleY(1); opacity: 1; } }
+  .story-color-bar { width: 48px; height: 48px; border-radius: 50%; margin: 0 auto 18px; box-shadow: 0 0 24px currentColor; animation: colorPulse 3s ease-in-out infinite; }
+  @keyframes colorPulse { 0%, 100% { box-shadow: 0 0 20px currentColor; } 50% { box-shadow: 0 0 32px currentColor; } }
+  .story-content { font-size: 16px; line-height: 2.1; color: #4A3A2A; margin-bottom: 20px; white-space: pre-wrap; text-align: left; font-family: "Kaiti", "STKaiti", "楷体", serif; position: relative; z-index: 1; }
+  .story-meta { font-size: 12px; color: #B09878; text-align: right; margin-bottom: 16px; font-style: italic; }
+  .story-responses { margin: 16px 0; padding: 14px; background: rgba(255, 220, 180, 0.2); border-radius: 12px; text-align: left; border-left: 3px solid #FFB088; }
+  .story-responses .title { font-size: 13px; color: #E8845A; margin-bottom: 10px; font-weight: bold; }
+  .story-responses .item { font-size: 13px; color: #6A4A3A; padding: 6px 0; border-bottom: 1px dotted #E8C8A8; line-height: 1.7; }
+  .story-responses .item:last-child { border-bottom: none; }
+  .story-responses .item .time { color: #C09878; font-size: 11px; margin-left: 6px; }
+  .story-actions { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+  .story-btn { padding: 10px 22px; background: transparent; border: 1.5px solid #E8A878; color: #C87850; border-radius: 20px; cursor: pointer; font-family: inherit; font-size: 14px; transition: all 0.3s; font-weight: 500; }
+  .story-btn:hover { background: #E8A878; color: #fff; }
+  .story-btn.heart { border-color: #F08898; color: #E06878; }
+  .story-btn.heart:hover { background: #F08898; color: #fff; }
+
+  .response-quote { font-size: 14px; color: #7A5A4A; line-height: 1.9; margin-bottom: 16px; padding: 14px; background: rgba(255, 220, 180, 0.2); border-left: 2px solid #FFB088; border-radius: 6px; text-align: left; font-style: italic; font-family: "Kaiti", "STKaiti", serif; }
+  .response-hints { font-size: 12px; color: #A08878; margin-bottom: 12px; text-align: left; }
+  .response-hints span { display: inline-block; margin: 3px 4px; padding: 4px 12px; background: rgba(255, 220, 180, 0.3); border-radius: 12px; cursor: pointer; transition: all 0.2s; color: #C87850; }
+  .response-hints span:hover { background: rgba(255, 180, 130, 0.5); }
+
+  .ending-text { font-size: clamp(20px, 4vw, 26px); line-height: 2.4; letter-spacing: 0.12em; color: #2A4A5A; text-shadow: 0 2px 12px rgba(255, 255, 255, 0.7); max-width: 90%; font-weight: 400; margin-bottom: 40px; }
+  .ending-text .line { display: block; opacity: 0; animation: lineIn 1.2s ease forwards; }
+  .ending-text .line:nth-child(1) { animation-delay: 0.5s; }
+  .ending-text .line:nth-child(2) { animation-delay: 1.6s; }
+  .ending-text .line:nth-child(3) { animation-delay: 2.7s; }
+
+  .my-stories-list { width: 92%; max-width: 480px; max-height: 60vh; overflow-y: auto; margin-top: 16px; }
+  .my-story-item { background: rgba(255, 255, 255, 0.75); border: 1px solid rgba(255, 255, 255, 0.9); border-radius: 14px; padding: 14px 16px; margin-bottom: 10px; text-align: left; cursor: pointer; transition: all 0.2s; color: #3A5A6A; position: relative; }
+  .my-story-item:hover { background: rgba(255, 255, 255, 0.95); transform: translateX(4px); }
+  .my-story-item .preview { font-size: 14px; color: #4A3A2A; line-height: 1.6; margin-bottom: 6px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; padding-right: 30px; }
+  .my-story-item .info { font-size: 11px; color: #A0B0B8; display: flex; justify-content: space-between; }
+  .my-story-item .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; margin-left: 6px; font-weight: 500; }
+
+  .delete-btn { position: absolute; top: 10px; right: 10px; width: 28px; height: 28px; border-radius: 50%; background: rgba(240, 136, 152, 0.15); border: 1px solid rgba(240, 136, 152, 0.4); color: #E06878; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; z-index: 2; }
+  .delete-btn:hover { background: #F08898; color: #fff; transform: scale(1.1); }
+
+  .confirm-modal { position: fixed; inset: 0; background: rgba(60, 90, 110, 0.5); backdrop-filter: blur(8px); z-index: 500; display: flex; align-items: center; justify-content: center; animation: fadeIn 0.2s ease; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .confirm-box { background: linear-gradient(135deg, #FFFDF5 0%, #FFF5E0 100%); border-radius: 20px; padding: 30px 24px; max-width: 340px; width: 85%; text-align: center; box-shadow: 0 20px 60px rgba(100, 160, 190, 0.3); animation: popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .confirm-icon { font-size: 40px; margin-bottom: 12px; }
+  .confirm-title { font-size: 18px; color: #3A5A6A; font-weight: 600; margin-bottom: 8px; }
+  .confirm-desc { font-size: 13px; color: #A08878; margin-bottom: 24px; }
+  .confirm-actions { display: flex; gap: 10px; justify-content: center; }
+  .confirm-btn { padding: 10px 22px; border-radius: 20px; font-family: inherit; font-size: 14px; cursor: pointer; border: none; font-weight: 500; transition: all 0.2s; min-width: 100px; }
+  .confirm-btn.cancel { background: rgba(200, 180, 150, 0.2); color: #7A5A4A; }
+  .confirm-btn.cancel:hover { background: rgba(200, 180, 150, 0.4); }
+  .confirm-btn.ok { background: linear-gradient(135deg, #F08898, #E06878); color: #fff; box-shadow: 0 4px 12px rgba(240, 136, 152, 0.3); }
+  .confirm-btn.ok:hover { transform: translateY(-1px); }
+
+  .back-btn { position: absolute; top: 20px; left: 20px; padding: 8px 16px; background: rgba(255, 255, 255, 0.7); border: 1px solid rgba(255, 255, 255, 0.9); color: #5A7A8A; border-radius: 20px; cursor: pointer; font-family: inherit; font-size: 13px; z-index: 20; backdrop-filter: blur(10px); transition: all 0.2s; font-weight: 500; }
+  .back-btn:hover { background: rgba(255, 255, 255, 0.9); color: #E8845A; }
+
+  .top-right-btns { position: absolute; top: 20px; right: 20px; display: flex; gap: 8px; z-index: 20; }
+  .icon-btn { padding: 8px 14px; background: rgba(255, 255, 255, 0.7); border: 1px solid rgba(255, 255, 255, 0.9); color: #5A7A8A; border-radius: 20px; cursor: pointer; font-family: inherit; font-size: 12px; backdrop-filter: blur(10px); transition: all 0.2s; font-weight: 500; }
+  .icon-btn:hover { background: rgba(255, 255, 255, 0.9); color: #E8845A; }
+
+  .music-controls { position: absolute; bottom: 60px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 25; }
+  .music-btn { width: 44px; height: 44px; border-radius: 50%; background: rgba(255, 255, 255, 0.7); border: 1px solid rgba(255, 255, 255, 0.9); color: #5A7A8A; font-size: 18px; cursor: pointer; backdrop-filter: blur(10px); transition: all 0.3s; display: flex; align-items: center; justify-content: center; position: relative; }
+  .music-btn:hover { background: rgba(255, 255, 255, 0.9); transform: scale(1.08); color: #E8845A; }
+  .music-btn.playing { animation: musicPulse 2s ease-in-out infinite; color: #E8845A; }
+  @keyframes musicPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 180, 130, 0.4); } 50% { box-shadow: 0 0 0 12px rgba(255, 180, 130, 0); } }
+  .music-btn .tooltip { position: absolute; right: 54px; top: 50%; transform: translateY(-50%); background: rgba(60, 90, 110, 0.9); color: #fff; padding: 6px 12px; border-radius: 6px; font-size: 11px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+  .music-btn:hover .tooltip { opacity: 1; }
+
+  .counter { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); font-size: 12px; color: #fff; z-index: 20; letter-spacing: 0.12em; padding: 6px 16px; background: rgba(100, 160, 190, 0.3); border-radius: 20px; backdrop-filter: blur(8px); font-weight: 500; text-shadow: 0 1px 4px rgba(100, 150, 180, 0.3); }
+
+  .loading { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite; margin-left: 8px; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(60, 90, 110, 0.92); color: #fff; padding: 14px 26px; border-radius: 12px; z-index: 1000; animation: toastIn 0.3s ease; font-size: 14px; max-width: 80%; text-align: center; }
+  @keyframes toastIn { from { opacity: 0; transform: translate(-50%, -40%); } to { opacity: 1; transform: translate(-50%, -50%); } }
+
+  .empty-hint { color: #7A9AAA; font-size: 14px; padding: 40px 20px; letter-spacing: 0.1em; }
+
+  .audio-hint { position: fixed; bottom: 120px; left: 50%; transform: translateX(-50%); background: rgba(255, 255, 255, 0.9); color: #E8845A; padding: 12px 20px; border-radius: 24px; font-size: 13px; z-index: 100; animation: hintPulse 2s ease-in-out infinite; cursor: pointer; backdrop-filter: blur(10px); border: 1px solid rgba(255, 200, 150, 0.6); font-weight: 500; box-shadow: 0 4px 16px rgba(255, 180, 130, 0.25); }
+  @keyframes hintPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 180, 130, 0.4); } 50% { box-shadow: 0 0 0 15px rgba(255, 180, 130, 0); } }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(200, 180, 150, 0.3); border-radius: 3px; }
+
+  @media (max-width: 500px) {
+    .card { padding: 22px 18px; }
+    .story-card { padding: 24px 18px; }
+    .btn { min-width: 190px; padding: 12px 28px; font-size: 14px; }
+    .back-btn, .icon-btn { padding: 6px 12px; font-size: 11px; }
+    .music-controls { bottom: 50px; right: 12px; }
+    .music-btn { width: 40px; height: 40px; font-size: 16px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="sky">
+    <div class="sun"></div>
+    <div class="cloud" style="top:18%; width:100px; height:30px; animation-duration:80s;"></div>
+    <div class="cloud" style="top:32%; width:70px; height:22px; animation-duration:100s; animation-delay:-40s;"></div>
+    <div class="cloud" style="top:10%; width:85px; height:26px; animation-duration:90s; animation-delay:-60s;"></div>
+    <div class="bird" style="top:22%; animation-duration:32s;"></div>
+    <div class="bird" style="top:30%; animation-duration:40s; animation-delay:-15s;"></div>
+  </div>
+
+  <div class="sea">
+    <div class="wave wave-1"></div>
+    <div class="wave wave-2"></div>
+    <div class="wave wave-3"></div>
+  </div>
+
+  <div class="floating-bottles" id="floatingBottles"></div>
+
+  <div class="top-right-btns" id="topBtns" style="display:none;">
+    <button class="icon-btn" onclick="goMyStories()">📖 我的</button>
+    <button class="icon-btn" onclick="shareApp()">📤 分享</button>
+  </div>
+
+  <div class="music-controls">
+    <button class="music-btn" id="bgmBtn" onclick="toggleBGM()">🎵<span class="tooltip">背景音乐</span></button>
+    <button class="music-btn" id="waveBtn" onclick="toggleWave()">🌊<span class="tooltip">海浪声</span></button>
+  </div>
+
+  <div class="counter" id="counter"></div>
+  <div class="audio-hint" id="audioHint" onclick="enableAudio()" style="display:none;">🔊 点击开启阳光音效</div>
+
+  <div class="page active" id="page-home">
+    <div class="logo">STORY · DRIFT ☀️</div>
+    <div class="home-text">
+      <span class="line">今天，</span>
+      <span class="line">想和谁分享</span>
+      <span class="line">一个小故事呢？</span>
+    </div>
+    <button class="btn primary" onclick="goPut()">✨ 放入我的故事</button>
+    <button class="btn" onclick="goPick()">🌊 捡起一个故事</button>
+  </div>
+
+  <div class="page" id="page-put">
+    <button class="back-btn" onclick="goHome()">← 返回</button>
+    <div class="card">
+      <div class="card-title">今天发生了什么小故事？</div>
+      <div class="card-hint">可以是：<br><span>一件开心的小事</span><span>一个温暖的瞬间</span><span>一个小目标</span><span>一句想对自己说的话</span></div>
+      <textarea id="storyInput" placeholder="写点什么吧，哪怕只是一句话 ☀️" maxlength="300"></textarea>
+      <div style="margin-top:20px; font-size:13px; color:#A08878;">给这个故事选个颜色</div>
+      <div class="color-picker">
+        <div class="color-dot c-warm" data-color="warm" data-label="温暖" onclick="selectColor(this)"></div>
+        <div class="color-dot c-sorry" data-color="sorry" data-label="小遗憾" onclick="selectColor(this)"></div>
+        <div class="color-dot c-grow" data-color="grow" data-label="成长" onclick="selectColor(this)"></div>
+        <div class="color-dot c-dream" data-color="dream" data-label="梦想" onclick="selectColor(this)"></div>
+        <div class="color-dot c-love" data-color="love" data-label="小确幸" onclick="selectColor(this)"></div>
+      </div>
+      <button class="btn primary" id="submitBtn" style="margin-top:30px;" onclick="submitStory()">✨ 装进瓶子，放入大海</button>
+    </div>
+  </div>
+
+  <div class="page" id="page-seal">
+    <div class="seal-stage">
+      <div class="cork" id="cork"></div>
+      <div class="seal-bottle" id="sealBottle"></div>
+      <div class="seal-text" id="sealText">你的小故事已经启航 🌊<br>正在寻找一个<br>会心一笑的人 ☀️</div>
+    </div>
+  </div>
+
+  <div class="page" id="page-pick">
+    <button class="back-btn" onclick="goHome()">← 返回</button>
+    <div style="margin-top:40px; width:92%; max-width:500px;">
+      <div class="filter-bar">
+        <div class="filter-chip active" data-color="all" onclick="filterStories('all', this)">全部</div>
+        <div class="filter-chip" data-color="warm" onclick="filterStories('warm', this)">🟡 温暖</div>
+        <div class="filter-chip" data-color="sorry" onclick="filterStories('sorry', this)">🔵 小遗憾</div>
+        <div class="filter-chip" data-color="grow" onclick="filterStories('grow', this)">🟢 成长</div>
+        <div class="filter-chip" data-color="dream" onclick="filterStories('dream', this)">🟣 梦想</div>
+        <div class="filter-chip" data-color="love" onclick="filterStories('love', this)">❤ 小确幸</div>
+      </div>
+      <div class="pickup-stage">
+        <div class="pickup-bottle" id="pickupBottle" onclick="openBottle()"></div>
+        <div class="pickup-hint" id="pickupHint">点击瓶子，看看里面写了什么 ☀️</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page" id="page-story">
+    <button class="back-btn" onclick="goPick()">← 放回大海</button>
+    <div class="story-card">
+      <div class="story-color-bar" id="storyColorBar"></div>
+      <div class="story-content" id="storyContent"></div>
+      <div class="story-meta" id="storyMeta"></div>
+      <div class="story-responses" id="storyResponses" style="display:none;">
+        <div class="title">💌 收到的温暖回应</div>
+        <div id="responsesList"></div>
+      </div>
+      <div class="story-actions">
+        <button class="story-btn heart" onclick="goRespond()">❤ 我也想回应</button>
+        <button class="story-btn" onclick="releaseBottle()">🌊 放回大海</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="page" id="page-respond">
+    <button class="back-btn" onclick="showStory()">← 返回</button>
+    <div class="card">
+      <div class="card-title">给陌生人一句温暖的话</div>
+      <div class="response-quote" id="responseQuote"></div>
+      <div class="response-hints">不知道写什么？可以试试：<span onclick="fillHint(this)">谢谢你的分享 ☀️</span><span onclick="fillHint(this)">我也有过类似的经历</span><span onclick="fillHint(this)">希望你今天开心</span><span onclick="fillHint(this)">加油呀</span><span onclick="fillHint(this)">世界因你更温柔</span></div>
+      <textarea id="responseInput" placeholder="写一句温暖的话吧～" maxlength="150"></textarea>
+      <button class="btn primary" id="responseBtn" style="margin-top:20px;" onclick="sendResponse()">✨ 装进瓶子，漂回去</button>
+    </div>
+  </div>
+
+  <div class="page" id="page-my">
+    <button class="back-btn" onclick="goHome()">← 返回</button>
+    <div class="card-title" style="margin-top:40px; color:#fff; text-shadow: 0 2px 8px rgba(100,150,180,0.4);">我的漂流瓶 📖</div>
+    <div class="card-hint" style="color:rgba(255,255,255,0.85);">你放入大海的故事，和收到的温暖</div>
+    <div class="my-stories-list" id="myStoriesList"></div>
+  </div>
+
+  <div class="page" id="page-end">
+    <div class="ending-text">
+      <span class="line">原来，</span>
+      <span class="line">每一份小小的温暖，</span>
+      <span class="line">都会找到它的归处 ☀️</span>
+    </div>
+    <button class="btn primary" onclick="goHome()">🌊 回到海边</button>
+  </div>
+</div>
+
+<div class="confirm-modal" id="confirmModal" style="display:none;">
+  <div class="confirm-box">
+    <div class="confirm-icon">🗑️</div>
+    <div class="confirm-title">确定要丢掉这个瓶子吗？</div>
+    <div class="confirm-desc">删除后就找不回来了哦</div>
+    <div class="confirm-actions">
+      <button class="confirm-btn cancel" onclick="closeConfirm()">再想想</button>
+      <button class="confirm-btn ok" onclick="confirmDelete()">确定删除</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ========== ⚠️ 重要：替换成你自己的 Leancloud 配置 ========== */
+const LC_APP_ID = 'YOUR_APP_ID';         // ← 替换成你的 AppID
+const LC_APP_KEY = 'YOUR_APP_KEY';       // ← 替换成你的 AppKey
+const LC_SERVER = 'YOUR_SERVER_URL';     // ← 替换成你的服务器地址
+/* ========================================================= */
+
+/* ========== 初始化 Leancloud ========== */
+let useCloud = true;
+try {
+  if (LC_APP_ID === 'YOUR_APP_ID' || LC_APP_KEY === 'YOUR_APP_KEY') {
+    useCloud = false;
+    console.warn('⚠️ 未配置 Leancloud，使用本地模式');
+  } else {
+    AV.init({
+      appId: LC_APP_ID,
+      appKey: LC_APP_KEY,
+      serverURL: LC_SERVER
+    });
+  }
+} catch (e) {
+  useCloud = false;
+  console.error('Leancloud 初始化失败', e);
+}
+
+/* ========== 本地存储（降级方案） ========== */
+const LOCAL_KEY = 'driftBottle_local_v3';
+let localData = { stories: [] };
+try {
+  const d = localStorage.getItem(LOCAL_KEY);
+  if (d) localData = JSON.parse(d);
+} catch(e) {}
+function saveLocal() { try { localStorage.setItem(LOCAL_KEY, JSON.stringify(localData)); } catch(e) {} }
+
+const SEED_STORIES = [
+  { id: 'seed1', text: '今天下班路上，看到一只橘猫在路灯下等我。它蹭了蹭我的裤脚，然后走了。突然觉得，这一天也没那么难熬。', color: 'warm', created_at: new Date(Date.now() - 86400000*2).toISOString(), responses: [] },
+  { id: 'seed2', text: '终于学会骑自行车了！摔了七次，膝盖青了一大片。但风吹过耳朵的时候，我觉得自己像飞起来。', color: 'grow', created_at: new Date(Date.now() - 86400000*1).toISOString(), responses: [] },
+  { id: 'seed3', text: '小时候想当宇航员，现在只想今晚能早点下班。梦想变小了，但日子好像更踏实了。', color: 'dream', created_at: new Date(Date.now() - 86400000*3).toISOString(), responses: [] },
+  { id: 'seed4', text: '奶奶走的那天，院子里的桂花开了。她说，人走了，香味会留下来。我信了。', color: 'love', created_at: new Date(Date.now() - 86400000*30).toISOString(), responses: [] },
+  { id: 'seed5', text: '今天被领导夸了一句"做得不错"，开心了一整天。原来一句简单的肯定，可以这么有力量。', color: 'warm', created_at: new Date(Date.now() - 86400000*1).toISOString(), responses: [] },
+  { id: 'seed6', text: '第一次自己做饭，虽然糊了一点，但吃下去的时候，感觉自己真的在好好生活。', color: 'grow', created_at: new Date(Date.now() - 86400000*4).toISOString(), responses: [] }
+];
+if (localData.stories.length === 0) { localData.stories = SEED_STORIES; saveLocal(); }
+
+/* ============================================================ */
+/* ====================== 🎵 音频系统 ========================== */
+/* ============================================================ */
+let audioCtx = null, waveNode = null, waveGain = null, bgmAudio = null;
+let bgmPlaying = false, wavePlaying = false, audioEnabled = false;
+const AUDIO_PREF_KEY = 'driftBottle_audio_pref';
+let audioPref = { bgm: true, wave: true, volume: 0.7 };
+try { const p = localStorage.getItem(AUDIO_PREF_KEY); if (p) audioPref = { ...audioPref, ...JSON.parse(p) }; } catch(e) {}
+function saveAudioPref() { try { localStorage.setItem(AUDIO_PREF_KEY, JSON.stringify(audioPref)); } catch(e) {} }
+
+const BGM_URL = 'https://cdn.pixabay.com/audio/2022/03/10/audio_3a6b3e6e8a.mp3';
+
+function initAudioContext() {
+  if (audioCtx) return;
+  try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+  catch(e) { console.warn('浏览器不支持 Web Audio API'); }
+}
+
+function startWaveSound() {
+  if (!audioCtx || waveNode) return;
+  const bufferSize = 2 * audioCtx.sampleRate;
+  const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const output = noiseBuffer.getChannelData(0);
+  let lastOut = 0;
+  for (let i = 0; i < bufferSize; i++) {
+    const white = Math.random() * 2 - 1;
+    output[i] = (lastOut + (0.02 * white)) / 1.02;
+    lastOut = output[i];
+    output[i] *= 3.5;
+  }
+  const noise = audioCtx.createBufferSource();
+  noise.buffer = noiseBuffer;
+  noise.loop = true;
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = 600;
+  const lfo = audioCtx.createOscillator();
+  lfo.type = 'sine';
+  lfo.frequency.value = 0.12;
+  const lfoGain = audioCtx.createGain();
+  lfoGain.gain.value = 350;
+  lfo.connect(lfoGain);
+  lfoGain.connect(filter.frequency);
+  lfo.start();
+  waveGain = audioCtx.createGain();
+  waveGain.gain.value = 0;
+  waveGain.gain.linearRampToValueAtTime(audioPref.volume * 0.4, audioCtx.currentTime + 2);
+  noise.connect(filter);
+  filter.connect(waveGain);
+  waveGain.connect(audioCtx.destination);
+  noise.start();
+  waveNode = noise;
+  wavePlaying = true;
+  updateWaveBtn();
+}
+
+function stopWaveSound() {
+  if (!waveNode || !waveGain) return;
+  waveGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1);
+  const node = waveNode;
+  setTimeout(() => { try { node.stop(); } catch(e) {} }, 1100);
+  waveNode = null;
+  waveGain = null;
+  wavePlaying = false;
+  updateWaveBtn();
+}
+
+function initBGM() {
+  if (bgmAudio) return;
+  bgmAudio = new Audio(BGM_URL);
+  bgmAudio.loop = true;
+  bgmAudio.volume = audioPref.volume * 0.3;
+  bgmAudio.addEventListener('ended', () => { bgmAudio.currentTime = 0; bgmAudio.play(); });
+}
+
+function startBGM() {
+  initBGM();
+  if (!bgmAudio) return;
+  bgmAudio.volume = 0;
+  bgmAudio.play().then(() => {
+    const targetVol = audioPref.volume * 0.3;
+    let current = 0;
+    const step = targetVol / 20;
+    const fade = setInterval(() => {
+      current += step;
+      if (current >= targetVol) { current = targetVol; clearInterval(fade); }
+      bgmAudio.volume = current;
+    }, 100);
+    bgmPlaying = true;
+    updateBgmBtn();
+  }).catch(e => { console.warn('播放失败', e); });
+}
+
+function stopBGM() {
+  if (!bgmAudio) return;
+  const startVol = bgmAudio.volume;
+  const step = startVol / 20;
+  const fade = setInterval(() => {
+    const newVol = bgmAudio.volume - step;
+    if (newVol <= 0) { bgmAudio.pause(); bgmAudio.volume = 0; clearInterval(fade); }
+    else { bgmAudio.volume = newVol; }
+  }, 100);
+  bgmPlaying = false;
+  updateBgmBtn();
+}
+
+function updateBgmBtn() {
+  const btn = document.getElementById('bgmBtn');
+  btn.textContent = bgmPlaying ? '🎵' : '🔇';
+  btn.classList.toggle('playing', bgmPlaying);
+}
+function updateWaveBtn() {
+  const btn = document.getElementById('waveBtn');
+  btn.textContent = wavePlaying ? '🌊' : '💤';
+  btn.classList.toggle('playing', wavePlaying);
+}
+
+function toggleBGM() {
+  if (!audioEnabled) { enableAudio(); return; }
+  if (bgmPlaying) { stopBGM(); audioPref.bgm = false; }
+  else { startBGM(); audioPref.bgm = true; }
+  saveAudioPref();
+  playClickSound();
+}
+
+function toggleWave() {
+  if (!audioEnabled) { enableAudio(); return; }
+  if (wavePlaying) { stopWaveSound(); audioPref.wave = false; }
+  else { startWaveSound(); audioPref.wave = true; }
+  saveAudioPref();
+  playClickSound();
+}
+
+function enableAudio() {
+  if (audioEnabled) return;
+  initAudioContext();
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  audioEnabled = true;
+  document.getElementById('audioHint').style.display = 'none';
+  if (audioPref.wave) startWaveSound();
+  if (audioPref.bgm) startBGM();
+  toast('🔊 已开启阳光音效');
+}
+
+function playClickSound() {
+  if (!audioEnabled || !audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.value = 880;
+  gain.gain.value = 0;
+  gain.gain.linearRampToValueAtTime(0.08, audioCtx.currentTime + 0.01);
+  gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.1);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.1);
+}
+
+function playSuccessSound() {
+  if (!audioEnabled || !audioCtx) return;
+  const notes = [523.25, 659.25, 783.99];
+  notes.forEach((freq, i) => {
+    setTimeout(() => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+      gain.gain.value = 0;
+      gain.gain.linearRampToValueAtTime(0.12, audioCtx.currentTime + 0.02);
+      gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.6);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.6);
+    }, i * 100);
+  });
+}
+
+function playBottleOpenSound() {
+  if (!audioEnabled || !audioCtx) return;
+  for (let i = 0; i < 5; i++) {
+    setTimeout(() => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = 500 + Math.random() * 700;
+      gain.gain.value = 0;
+      gain.gain.linearRampToValueAtTime(0.06, audioCtx.currentTime + 0.01);
+      gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.15);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.15);
+    }, i * 60);
+  }
+}
+
+/* ============================================================ */
+/* ==================== 瓶子 SVG =============================== */
+/* ============================================================ */
+function bottleSVG(color = 'warm', size = 100) {
+  const colors = {
+    warm:  { liquid: '#FFC878', glass: 'rgba(255,230,180,0.6)' },
+    sorry: { liquid: '#88B8E0', glass: 'rgba(200,225,245,0.6)' },
+    grow:  { liquid: '#98D088', glass: 'rgba(210,235,210,0.6)' },
+    dream: { liquid: '#C098E0', glass: 'rgba(230,210,245,0.6)' },
+    love:  { liquid: '#F098A8', glass: 'rgba(250,215,220,0.6)' }
+  };
+  const c = colors[color] || colors.warm;
+  const uid = Math.random().toString(36).slice(2, 8);
+  return `
+    <svg class="bottle-svg" width="${size}" height="${size*1.35}" viewBox="0 0 80 108" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="g-${uid}" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="rgba(255,255,255,0.6)"/>
+          <stop offset="50%" stop-color="${c.glass}"/>
+          <stop offset="100%" stop-color="rgba(255,255,255,0.3)"/>
+        </linearGradient>
+        <linearGradient id="l-${uid}" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="${c.liquid}" stop-opacity="0.95"/>
+          <stop offset="100%" stop-color="${c.liquid}" stop-opacity="0.7"/>
+        </linearGradient>
+      </defs>
+      <path d="M 25 25 Q 20 30 20 45 L 20 90 Q 20 100 30 100 L 50 100 Q 60 100 60 90 L 60 45 Q 60 30 55 25 Z" fill="url(#g-${uid})" stroke="rgba(255,255,255,0.8)" stroke-width="1"/>
+      <path d="M 23 55 L 23 90 Q 23 97 30 97 L 50 97 Q 57 97 57 90 L 57 55 Q 40 50 23 55 Z" fill="url(#l-${uid})"/>
+      <ellipse cx="40" cy="55" rx="17" ry="2" fill="rgba(255,255,255,0.6)"/>
+      <rect x="30" y="15" width="20" height="12" rx="2" fill="url(#g-${uid})" stroke="rgba(255,255,255,0.8)" stroke-width="1"/>
+      <rect x="31" y="8" width="18" height="8" rx="2" fill="#C89868" stroke="#A07848" stroke-width="0.5"/>
+      <path d="M 26 35 Q 24 50 26 80" stroke="rgba(255,255,255,0.7)" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <rect x="32" y="65" width="16" height="20" fill="rgba(255,250,230,0.9)" transform="rotate(-5 40 75)"/>
+      <line x1="34" y1="70" x2="46" y2="70" stroke="#C8A878" stroke-width="0.5" transform="rotate(-5 40 75)"/>
+      <line x1="34" y1="74" x2="46" y2="74" stroke="#C8A878" stroke-width="0.5" transform="rotate(-5 40 75)"/>
+      <line x1="34" y1="78" x2="42" y2="78" stroke="#C8A878" stroke-width="0.5" transform="rotate(-5 40 75)"/>
+    </svg>
+  `;
+}
+
+/* ============ 状态 ============ */
+let currentColor = null;
+let currentStory = null;
+let allStories = [];
+let currentFilter = 'all';
+
+/* ============ 工具函数 ============ */
+function toast(msg, duration = 2000) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), duration);
+}
+
+function timeAgo(dateStr) {
+  if (!dateStr) return '刚刚';
+  const d = new Date(dateStr);
+  const now = new Date();
+  const diff = (now - d) / 1000;
+  if (diff < 60) return '刚刚';
+  if (diff < 3600) return Math.floor(diff / 60) + '分钟前';
+  if (diff < 86400) return Math.floor(diff / 3600) + '小时前';
+  if (diff < 2592000) return Math.floor(diff / 86400) + '天前';
+  if (diff < 31536000) return Math.floor(diff / 2592000) + '个月前';
+  return Math.floor(diff / 31536000) + '年前';
+}
+
+function shakeElement(el) {
+  el.style.animation = 'none'; el.offsetHeight;
+  el.style.animation = 'shake 0.4s ease';
+  setTimeout(() => el.style.animation = '', 400);
+}
+const shakeStyle = document.createElement('style');
+shakeStyle.textContent = `@keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }`;
+document.head.appendChild(shakeStyle);
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+/* ============================================================ */
+/* ============ 🌊 Leancloud 数据操作 ========================== */
+/* ============================================================ */
+
+async function getAllStories() {
+  if (useCloud) {
+    try {
+      const query = new AV.Query('Story');
+      query.descending('createdAt');
+      query.limit(200);
+      const results = await query.find();
+      return results.map(obj => ({
+        id: obj.id,
+        text: obj.get('text'),
+        color: obj.get('color'),
+        created_at: obj.createdAt.toISOString(),
+        responses: obj.get('responses') || []
+      }));
+    } catch (e) {
+      console.error('查询失败', e);
+      throw e;
+    }
+  } else {
+    return localData.stories.slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  }
+}
+
+async function getStoryCount() {
+  if (useCloud) {
+    try {
+      const query = new AV.Query('Story');
+      return await query.count();
+    } catch (e) {
+      return 0;
+    }
+  } else {
+    return localData.stories.length;
+  }
+}
+
+async function insertStory(text, color) {
+  if (useCloud) {
+    const Story = AV.Object.extend('Story');
+    const story = new Story();
+    story.set('text', text);
+    story.set('color', color);
+    story.set('responses', []);
+    const saved = await story.save();
+    // 记录我的故事 ID
+    const myIds = JSON.parse(localStorage.getItem('myStoryIds') || '[]');
+    myIds.push(saved.id);
+    localStorage.setItem('myStoryIds', JSON.stringify(myIds));
+    return {
+      id: saved.id,
+      text: saved.get('text'),
+      color: saved.get('color'),
+      created_at: saved.createdAt.toISOString(),
+      responses: []
+    };
+  } else {
+    const newStory = { id: 'local_' + Date.now(), text, color, created_at: new Date().toISOString(), responses: [] };
+    localData.stories.unshift(newStory);
+    saveLocal();
+    const myIds = JSON.parse(localStorage.getItem('myStoryIds') || '[]');
+    myIds.push(newStory.id);
+    localStorage.setItem('myStoryIds', JSON.stringify(myIds));
+    return newStory;
+  }
+}
+
+async function updateStoryResponses(id, responses) {
+  if (useCloud) {
+    const story = AV.Object.createWithoutData('Story', id);
+    story.set('responses', responses);
+    await story.save();
+  } else {
+    const s = localData.stories.find(x => x.id === id);
+    if (s) { s.responses = responses; saveLocal(); }
+  }
+}
+
+async function deleteStory(id) {
+  if (useCloud) {
+    const story = AV.Object.createWithoutData('Story', id);
+    await story.destroy();
+  } else {
+    localData.stories = localData.stories.filter(s => s.id !== id);
+    saveLocal();
+  }
+}
+
+/* ============ 页面切换 ============ */
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  const needTopBtns = ['page-put', 'page-pick', 'page-story', 'page-my'].includes(id);
+  document.getElementById('topBtns').style.display = needTopBtns ? 'flex' : 'none';
+}
+
+async function goHome() {
+  showPage('page-home');
+  await loadStats();
+}
+
+function goPut() {
+  currentColor = null;
+  document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('selected'));
+  document.getElementById('storyInput').value = '';
+  showPage('page-put');
+  playClickSound();
+}
+
+async function goPick() {
+  showPage('page-pick');
+  document.getElementById('pickupHint').innerHTML = '正在从海里捞瓶子<span class="loading"></span>';
+  document.getElementById('pickupBottle').innerHTML = '';
+  document.getElementById('pickupBottle').onclick = null;
+
+  try {
+    allStories = await getAllStories();
+    const filtered = currentFilter === 'all' ? allStories : allStories.filter(s => s.color === currentFilter);
+
+    if (filtered.length === 0) {
+      document.getElementById('pickupHint').textContent = currentFilter === 'all' ? '海里还没有故事，你先放一个吧～' : '这个颜色的瓶子还没出现，换个颜色试试？';
+      return;
+    }
+
+    currentStory = filtered[Math.floor(Math.random() * filtered.length)];
+    document.getElementById('pickupBottle').innerHTML = bottleSVG(currentStory.color, 130);
+    document.getElementById('pickupBottle').onclick = openBottle;
+    document.getElementById('pickupHint').textContent = '点击瓶子，看看里面写了什么 ☀️';
+  } catch (e) {
+    console.error(e);
+    document.getElementById('pickupHint').textContent = '捞瓶子失败了，再试一次';
+    toast('网络错误：' + e.message);
+  }
+}
+
+function filterStories(color, el) {
+  currentFilter = color;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  goPick();
+  playClickSound();
+}
+
+async function loadStats() {
+  try {
+    const count = await getStoryCount();
+    const modeText = useCloud ? '' : '（本地模式）';
+    document.getElementById('counter').textContent = `🌊 海里漂着 ${count} 个故事 ${modeText}`;
+  } catch (e) {
+    document.getElementById('counter').textContent = '';
+  }
+}
+
+function selectColor(el) {
+  document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('selected'));
+  el.classList.add('selected');
+  currentColor = el.dataset.color;
+  playClickSound();
+}
+
+async function submitStory() {
+  const text = document.getElementById('storyInput').value.trim();
+  if (!text) { shakeElement(document.getElementById('storyInput')); toast('写点什么吧～'); return; }
+  if (!currentColor) { toast('给这个故事选个颜色吧'); return; }
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.innerHTML = '装瓶中<span class="loading"></span>';
+
+  try {
+    await insertStory(text, currentColor);
+
+    showPage('page-seal');
+    const sealBottle = document.getElementById('sealBottle');
+    const cork = document.getElementById('cork');
+    const sealText = document.getElementById('sealText');
+    sealBottle.innerHTML = bottleSVG(currentColor, 100);
+    cork.classList.remove('drop');
+    sealBottle.classList.remove('sailing');
+    sealText.classList.remove('show');
+
+    setTimeout(() => cork.classList.add('drop'), 400);
+    setTimeout(() => {
+      sealBottle.classList.add('sailing');
+      sealText.classList.add('show');
+      playSuccessSound();
+    }, 1400);
+    setTimeout(() => showPage('page-end'), 3800);
+
+    btn.innerHTML = '✨ 装进瓶子，放入大海';
+    btn.disabled = false;
+  } catch (e) {
+    console.error(e);
+    toast('放入失败：' + e.message);
+    btn.disabled = false;
+    btn.innerHTML = '✨ 装进瓶子，放入大海';
+  }
+}
+
+function openBottle() {
+  if (!currentStory) return;
+  playBottleOpenSound();
+
+  const colorMap = {
+    warm:  { bg: '#FFE08A', name: '温暖' },
+    sorry: { bg: '#B8D8F0', name: '小遗憾' },
+    grow:  { bg: '#C8E8B8', name: '成长' },
+    dream: { bg: '#E0C8F0', name: '梦想' },
+    love:  { bg: '#FFC0C0', name: '小确幸' }
+  };
+  const c = colorMap[currentStory.color] || colorMap.warm;
+
+  document.getElementById('storyColorBar').style.background = `radial-gradient(circle, ${c.bg}, ${c.bg}aa)`;
+  document.getElementById('storyColorBar').style.color = c.bg;
+  document.getElementById('storyContent').textContent = currentStory.text;
+  document.getElementById('storyMeta').textContent = `— 一个陌生人 · ${timeAgo(currentStory.created_at)} · ${c.name}`;
+
+  const responses = currentStory.responses || [];
+  const respBox = document.getElementById('storyResponses');
+  const respList = document.getElementById('responsesList');
+  if (responses.length > 0) {
+    respBox.style.display = 'block';
+    respList.innerHTML = responses.slice().reverse().map(r =>
+      `<div class="item">💬 ${escapeHtml(r.text)}<span class="time">${timeAgo(r.time)}</span></div>`
+    ).join('');
+  } else {
+    respBox.style.display = 'none';
+  }
+
+  showPage('page-story');
+}
+
+function goRespond() {
+  document.getElementById('responseQuote').textContent = `"${currentStory.text}"`;
+  document.getElementById('responseInput').value = '';
+  showPage('page-respond');
+  playClickSound();
+}
+function fillHint(el) {
+  document.getElementById('responseInput').value = el.textContent;
+  playClickSound();
+}
+
+async function sendResponse() {
+  const text = document.getElementById('responseInput').value.trim();
+  if (!text) { shakeElement(document.getElementById('responseInput')); toast('写点什么吧～'); return; }
+
+  const btn = document.getElementById('responseBtn');
+  btn.disabled = true;
+  btn.innerHTML = '发送中<span class="loading"></span>';
+
+  try {
+    const responses = currentStory.responses || [];
+    responses.push({ text, time: new Date().toISOString() });
+    await updateStoryResponses(currentStory.id, responses);
+
+    btn.innerHTML = '已送出 ✨';
+    playSuccessSound();
+    setTimeout(() => {
+      showPage('page-end');
+      btn.innerHTML = '✨ 装进瓶子，漂回去';
+      btn.disabled = false;
+    }, 1200);
+  } catch (e) {
+    console.error(e);
+    toast('发送失败：' + e.message);
+    btn.innerHTML = '✨ 装进瓶子，漂回去';
+    btn.disabled = false;
+  }
+}
+
+function releaseBottle() { goPick(); playClickSound(); }
+function showStory() { showPage('page-story'); }
+
+async function goMyStories() {
+  showPage('page-my');
+  playClickSound();
+  const list = document.getElementById('myStoriesList');
+  list.innerHTML = '<div class="empty-hint">加载中...</div>';
+
+  try {
+    const myIds = JSON.parse(localStorage.getItem('myStoryIds') || '[]');
+    if (myIds.length === 0) {
+      list.innerHTML = '<div class="empty-hint">你还没有放入过故事<br>去海边放一个吧 ☀️</div>';
+      return;
+    }
+
+    const all = await getAllStories();
+    const myStories = all.filter(s => myIds.includes(s.id));
+
+    if (myStories.length === 0) {
+      list.innerHTML = '<div class="empty-hint">你的故事已经漂远了<br>去放一个新的吧～</div>';
+      return;
+    }
+
+    const colorNames = { warm: '温暖', sorry: '小遗憾', grow: '成长', dream: '梦想', love: '小确幸' };
+    const colorBgs = { warm: '#FFE08A', sorry: '#B8D8F0', grow: '#C8E8B8', dream: '#E0C8F0', love: '#FFC0C0' };
+
+    list.innerHTML = myStories.map(s => `
+      <div class="my-story-item" onclick='viewMyStory("${s.id}")'>
+        <button class="delete-btn" onclick="event.stopPropagation(); confirmDeleteStory('${s.id}')" title="删除">🗑️</button>
+        <div class="preview">${escapeHtml(s.text)}</div>
+        <div class="info">
+          <span>${timeAgo(s.created_at)}</span>
+          <span>
+            <span class="badge" style="background:${colorBgs[s.color]}50; color:#6A4A3A;">${colorNames[s.color]}</span>
+            💌 ${(s.responses || []).length} 条回应
+          </span>
+        </div>
+      </div>
+    `).join('');
+  } catch (e) {
+    console.error(e);
+    list.innerHTML = '<div class="empty-hint">加载失败</div>';
+  }
+}
+
+async function viewMyStory(id) {
+  try {
+    const all = await getAllStories();
+    const s = all.find(x => x.id === id);
+    if (s) {
+      currentStory = s;
+      const colorMap = {
+        warm:  { bg: '#FFE08A', name: '温暖' },
+        sorry: { bg: '#B8D8F0', name: '小遗憾' },
+        grow:  { bg: '#C8E8B8', name: '成长' },
+        dream: { bg: '#E0C8F0', name: '梦想' },
+        love:  { bg: '#FFC0C0', name: '小确幸' }
+      };
+      const c = colorMap[s.color] || colorMap.warm;
+      document.getElementById('storyColorBar').style.background = `radial-gradient(circle, ${c.bg}, ${c.bg}aa)`;
+      document.getElementById('storyColorBar').style.color = c.bg;
+      document.getElementById('storyContent').textContent = s.text;
+      document.getElementById('storyMeta').textContent = `— 你 · ${timeAgo(s.created_at)} · ${c.name}`;
+      const responses = s.responses || [];
+      const respBox = document.getElementById('storyResponses');
+      const respList = document.getElementById('responsesList');
+      if (responses.length > 0) {
+        respBox.style.display = 'block';
+        respList.innerHTML = responses.slice().reverse().map(r =>
+          `<div class="item">💬 ${escapeHtml(r.text)}<span class="time">${timeAgo(r.time)}</span></div>`
+        ).join('');
+      } else {
+        respBox.style.display = 'none';
+      }
+      showPage('page-story');
+    }
+  } catch (e) { toast('加载失败'); }
+}
+
+function shareApp() {
+  const url = window.location.href;
+  const text = '我在《故事漂流瓶》里放了一个小故事，你要来捡一个吗？☀️';
+  if (navigator.share) {
+    navigator.share({ title: '故事漂流瓶', text, url }).catch(() => {});
+  } else {
+    const input = document.createElement('textarea');
+    input.value = `${text}\n${url}`;
+    document.body.appendChild(input);
+    input.select();
+    try {
+      document.execCommand('copy');
+      toast('链接已复制，去分享给朋友吧 ☀️');
+    } catch (e) {
+      toast('请手动复制链接：' + url);
+    }
+    document.body.removeChild(input);
+  }
+  playClickSound();
+}
+
+function spawnFloatingBottles() {
+  const container = document.getElementById('floatingBottles');
+  const colors = ['warm', 'sorry', 'grow', 'dream', 'love'];
+  for (let i = 0; i < 6; i++) {
+    const b = document.createElement('div');
+    b.className = 'float-bottle';
+    b.innerHTML = bottleSVG(colors[i % colors.length], 36 + Math.random() * 20);
+    b.style.top = (55 + Math.random() * 32) + '%';
+    b.style.animationDuration = (20 + Math.random() * 14) + 's';
+    b.style.animationDelay = (-Math.random() * 22) + 's';
+    b.style.opacity = 0.6 + Math.random() * 0.3;
+    container.appendChild(b);
+  }
+}
+
+function spawnSparkles() {
+  const sea = document.querySelector('.sea');
+  for (let i = 0; i < 30; i++) {
+    const s = document.createElement('div');
+    s.className = 'sparkle';
+    s.style.left = Math.random() * 100 + '%';
+    s.style.top = Math.random() * 85 + '%';
+    s.style.animationDelay = Math.random() * 4 + 's';
+    s.style.animationDuration = (3 + Math.random() * 3) + 's';
+    sea.appendChild(s);
+  }
+}
+
+/* ============================================================ */
+/* ==================== 🗑️ 删除故事 ============================ */
+/* ============================================================ */
+let pendingDeleteId = null;
+
+function confirmDeleteStory(id) {
+  pendingDeleteId = id;
+  document.getElementById('confirmModal').style.display = 'flex';
+  playClickSound();
+}
+
+function closeConfirm() {
+  document.getElementById('confirmModal').style.display = 'none';
+  pendingDeleteId = null;
+}
+
+async function confirmDelete() {
+  if (!pendingDeleteId) return;
+  const id = pendingDeleteId;
+
+  try {
+    await deleteStory(id);
+
+    const myIds = JSON.parse(localStorage.getItem('myStoryIds') || '[]');
+    const newIds = myIds.filter(x => x !== id);
+    localStorage.setItem('myStoryIds', JSON.stringify(newIds));
+
+    closeConfirm();
+    toast('🗑️ 瓶子已经丢掉啦');
+    playClickSound();
+
+    goMyStories();
+    loadStats();
+  } catch (e) {
+    console.error(e);
+    toast('删除失败：' + e.message);
+    closeConfirm();
+  }
+}
+
+document.addEventListener('click', (e) => {
+  const modal = document.getElementById('confirmModal');
+  if (e.target === modal) closeConfirm();
+});
+
+/* ============ 初始化 ============ */
+spawnFloatingBottles();
+spawnSparkles();
+loadStats();
+setInterval(loadStats, 30000);
+
+updateBgmBtn();
+updateWaveBtn();
+
+setTimeout(() => {
+  if (!audioEnabled) {
+    document.getElementById('audioHint').style.display = 'block';
+    setTimeout(() => {
+      const hint = document.getElementById('audioHint');
+      if (hint && hint.style.display !== 'none') {
+        hint.style.opacity = '0';
+        hint.style.transition = 'opacity 1s';
+        setTimeout(() => hint.style.display = 'none', 1000);
+      }
+    }, 10000);
+  }
+}, 2000);
+
+document.addEventListener('click', function firstClick() {
+  if (!audioEnabled) enableAudio();
+  document.removeEventListener('click', firstClick);
+}, { once: false });
+
+if (!useCloud) {
+  setTimeout(() => toast('当前为本地模式，故事仅保存在本设备', 3500), 1500);
+}
+</script>
+</body>
+</html>
